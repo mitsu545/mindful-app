@@ -64,9 +64,15 @@
   .result-list div { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.08); font-size: 0.95rem; }
   .noticing-note { font-size: 0.85rem; color: #777; margin-top: 4px; }
   .reminder { background: #eef2ee; border-radius: 12px; padding: 16px; margin-bottom: 20px; font-size: 0.95rem; line-height: 1.6; }
+
+  /* 保存状態 */
+  #save-status { font-size: 0.9rem; margin-bottom: 12px; min-height: 1.4em; }
+  #save-status.error { color: #b3413a; }
+  #save-status.ok { color: #5b7f6b; }
 </style>
 </head>
 <body>
+<script src="config.local.js" onerror="window.APP_CONFIG = null;"></script>
 
 <section id="screen-time" class="screen active">
   <h1>瞑想する時間を選んでください</h1>
@@ -101,15 +107,20 @@
   <h1>おつかれさまでした</h1>
   <div class="reminder">雑念に気づいて戻した回数こそが、脳のトレーニング成果です</div>
   <div class="result-list" id="result-list"></div>
+  <div id="save-status"></div>
+  <button class="secondary" id="retry-save-btn" hidden>再送する</button>
   <button id="restart-btn">もう一度</button>
 </section>
 
 <script>
 (function () {
   var state = {
+    sessionId: null,
     durationMin: 3,
     preScore: null,
+    preTimestamp: null,
     postScore: null,
+    postTimestamp: null,
     labelKangae: 0,
     labelFuan: 0,
     labelKeikaku: 0,
@@ -132,9 +143,12 @@
   }
 
   function resetState() {
+    state.sessionId = null;
     state.durationMin = 3;
     state.preScore = null;
+    state.preTimestamp = null;
     state.postScore = null;
+    state.postTimestamp = null;
     state.labelKangae = 0;
     state.labelFuan = 0;
     state.labelKeikaku = 0;
@@ -143,6 +157,10 @@
       clearInterval(state.timerId);
       state.timerId = null;
     }
+  }
+
+  function makeSessionId() {
+    return "s-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
   }
 
   // --- 画面1: 時間選択 ---
@@ -154,6 +172,7 @@
     if (min === 3) btn.style.outline = "3px solid #2f4a3a";
     btn.addEventListener("click", function () {
       state.durationMin = min;
+      state.sessionId = makeSessionId();
       showScreen("screen-pre");
     });
     durationButtonsEl.appendChild(btn);
@@ -173,6 +192,7 @@
   }
   buildScoreButtons(document.getElementById("pre-score-buttons"), function (score) {
     state.preScore = score;
+    state.preTimestamp = new Date().toISOString();
     startTimerFlow();
   });
   document.getElementById("pre-skip-btn").addEventListener("click", function () {
@@ -253,6 +273,7 @@
   // --- 画面4: 後スコア ---
   buildScoreButtons(document.getElementById("post-score-buttons"), function (score) {
     state.postScore = score;
+    state.postTimestamp = new Date().toISOString();
     showResult();
   });
   document.getElementById("post-skip-btn").addEventListener("click", function () {
@@ -274,7 +295,72 @@
         state.labelKangae + " / " + state.labelFuan + " / " + state.labelKeikaku +
       "</span></div>";
     showScreen("screen-result");
+    saveSession();
   }
+
+  // --- 保存（GAS Web Appへ送信） ---
+  var saveStatusEl = document.getElementById("save-status");
+  var retryBtn = document.getElementById("retry-save-btn");
+
+  function buildPayload() {
+    var payload = {
+      secret: window.APP_CONFIG ? window.APP_CONFIG.secret : "",
+      session_id: state.sessionId,
+      duration_min: state.durationMin,
+      label_kangae: state.labelKangae,
+      label_fuan: state.labelFuan,
+      label_keikaku: state.labelKeikaku
+    };
+    if (state.preScore !== null) {
+      payload.pre = { timestamp: state.preTimestamp, score: state.preScore };
+    }
+    if (state.postScore !== null) {
+      payload.post = { timestamp: state.postTimestamp, score: state.postScore };
+    }
+    return payload;
+  }
+
+  function saveSession() {
+    if (!window.APP_CONFIG || !window.APP_CONFIG.gasUrl) {
+      showSaveStatus("error", "GASの設定がまだのため保存されていません");
+      retryBtn.hidden = true;
+      return;
+    }
+    if (state.preScore === null && state.postScore === null) {
+      // 前後ともスキップした場合は送るデータがない
+      return;
+    }
+
+    showSaveStatus("", "保存中…");
+    retryBtn.hidden = true;
+
+    // text/plain で送るとブラウザのCORSプリフライトを避けられる（GAS側でJSONとして読む）
+    fetch(window.APP_CONFIG.gasUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(buildPayload())
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          showSaveStatus("ok", "保存しました");
+        } else {
+          showSaveStatus("error", "保存に失敗しました：" + (data.error || "不明なエラー"));
+          retryBtn.hidden = false;
+        }
+      })
+      .catch(function () {
+        showSaveStatus("error", "保存に失敗しました（通信エラー）");
+        retryBtn.hidden = false;
+      });
+  }
+
+  function showSaveStatus(cls, text) {
+    saveStatusEl.className = cls;
+    saveStatusEl.textContent = text;
+  }
+
+  retryBtn.addEventListener("click", saveSession);
 
   document.getElementById("restart-btn").addEventListener("click", function () {
     resetState();
