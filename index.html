@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>マインドフルネス</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --text: #2b2b2b;
+    --accent: #5b7f6b;
+    --dark-bg: #14161a;
+    --dark-text: #e8e6df;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .screen { display: none; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+  .screen.active { display: flex; }
+  h1 { font-size: 1.2rem; margin-bottom: 24px; }
+  p.lead { font-size: 1rem; line-height: 1.6; margin-bottom: 24px; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  button {
+    font-size: 1.1rem;
+    padding: 16px 20px;
+    min-width: 56px;
+    min-height: 56px;
+    border: none;
+    border-radius: 12px;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+  }
+  button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  button:active { opacity: 0.7; }
+
+  /* タイマー画面 */
+  #screen-timer { background: var(--dark-bg); color: var(--dark-text); padding: 0; }
+  #screen-timer .timer-top { padding: 40px 24px 12px; }
+  #timer-display { font-size: 3rem; font-variant-numeric: tabular-nums; margin: 12px 0; }
+  #anchor-text { font-size: 1rem; line-height: 1.6; min-height: 3em; padding: 0 16px; }
+  .noticing-area { flex: 1; width: 100%; display: flex; flex-direction: column; }
+  .noticing-btn {
+    flex: 1;
+    width: 100%;
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    color: rgba(255,255,255,0.55);
+    font-size: 0.95rem;
+    border-radius: 0;
+    min-height: unset;
+  }
+  .noticing-btn.flash { background: rgba(255,255,255,0.14); }
+
+  /* 結果画面 */
+  .result-list { text-align: left; width: 100%; max-width: 320px; margin-bottom: 20px; }
+  .result-list div { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.08); font-size: 0.95rem; }
+  .noticing-note { font-size: 0.85rem; color: #777; margin-top: 4px; }
+  .reminder { background: #eef2ee; border-radius: 12px; padding: 16px; margin-bottom: 20px; font-size: 0.95rem; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<section id="screen-time" class="screen active">
+  <h1>瞑想する時間を選んでください</h1>
+  <div class="btn-row" id="duration-buttons"></div>
+</section>
+
+<section id="screen-pre" class="screen">
+  <h1>今の気分は？</h1>
+  <div class="btn-row" id="pre-score-buttons"></div>
+  <button class="secondary" id="pre-skip-btn" style="margin-top:16px;">スキップ</button>
+</section>
+
+<section id="screen-timer" class="screen">
+  <div class="timer-top">
+    <div id="timer-display">00:00</div>
+    <div id="anchor-text"></div>
+  </div>
+  <div class="noticing-area">
+    <button class="noticing-btn" id="btn-kangae" data-label="考え事">考え事</button>
+    <button class="noticing-btn" id="btn-fuan" data-label="不安">不安</button>
+    <button class="noticing-btn" id="btn-keikaku" data-label="計画">計画</button>
+  </div>
+</section>
+
+<section id="screen-post" class="screen">
+  <h1>終わりました。今の気分は？</h1>
+  <div class="btn-row" id="post-score-buttons"></div>
+  <button class="secondary" id="post-skip-btn" style="margin-top:16px;">スキップ</button>
+</section>
+
+<section id="screen-result" class="screen">
+  <h1>おつかれさまでした</h1>
+  <div class="reminder">雑念に気づいて戻した回数こそが、脳のトレーニング成果です</div>
+  <div class="result-list" id="result-list"></div>
+  <button id="restart-btn">もう一度</button>
+</section>
+
+<script>
+(function () {
+  var state = {
+    durationMin: 3,
+    preScore: null,
+    postScore: null,
+    labelKangae: 0,
+    labelFuan: 0,
+    labelKeikaku: 0,
+    remainingSec: 0,
+    timerId: null
+  };
+
+  var ANCHOR_TEXTS = [
+    "足の裏の感覚に意識を向けましょう（床に触れている圧力・温度）",
+    "坐骨の重みに意識を向けましょう（お尻や骨盤が座面に乗っている感覚）",
+    "お腹の上下に意識を向けましょう（呼吸による自然な動き）"
+  ];
+  var RAIN_TEXT = "感情を責めずにただ認め、お腹や胸の感覚に寄り添いましょう";
+
+  function showScreen(id) {
+    document.querySelectorAll(".screen").forEach(function (el) {
+      el.classList.remove("active");
+    });
+    document.getElementById(id).classList.add("active");
+  }
+
+  function resetState() {
+    state.durationMin = 3;
+    state.preScore = null;
+    state.postScore = null;
+    state.labelKangae = 0;
+    state.labelFuan = 0;
+    state.labelKeikaku = 0;
+    state.remainingSec = 0;
+    if (state.timerId) {
+      clearInterval(state.timerId);
+      state.timerId = null;
+    }
+  }
+
+  // --- 画面1: 時間選択 ---
+  var DURATIONS = [1, 3, 5, 8, 10];
+  var durationButtonsEl = document.getElementById("duration-buttons");
+  DURATIONS.forEach(function (min) {
+    var btn = document.createElement("button");
+    btn.textContent = min + "分";
+    if (min === 3) btn.style.outline = "3px solid #2f4a3a";
+    btn.addEventListener("click", function () {
+      state.durationMin = min;
+      showScreen("screen-pre");
+    });
+    durationButtonsEl.appendChild(btn);
+  });
+
+  // --- 画面2: 前スコア ---
+  function buildScoreButtons(container, onSelect) {
+    container.innerHTML = "";
+    for (var v = 1; v <= 5; v++) {
+      (function (score) {
+        var btn = document.createElement("button");
+        btn.textContent = score;
+        btn.addEventListener("click", function () { onSelect(score); });
+        container.appendChild(btn);
+      })(v);
+    }
+  }
+  buildScoreButtons(document.getElementById("pre-score-buttons"), function (score) {
+    state.preScore = score;
+    startTimerFlow();
+  });
+  document.getElementById("pre-skip-btn").addEventListener("click", function () {
+    state.preScore = null;
+    startTimerFlow();
+  });
+
+  // --- 画面3: タイマー ---
+  function pickAnchorText() {
+    if (state.preScore === 1 || state.preScore === 2) return RAIN_TEXT;
+    var i = Math.floor(Math.random() * ANCHOR_TEXTS.length);
+    return ANCHOR_TEXTS[i];
+  }
+
+  function formatTime(sec) {
+    var m = Math.floor(sec / 60);
+    var s = sec % 60;
+    return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  function startTimerFlow() {
+    document.getElementById("anchor-text").textContent = pickAnchorText();
+    state.remainingSec = state.durationMin * 60;
+    document.getElementById("timer-display").textContent = formatTime(state.remainingSec);
+    showScreen("screen-timer");
+
+    state.timerId = setInterval(function () {
+      state.remainingSec--;
+      document.getElementById("timer-display").textContent = formatTime(state.remainingSec);
+      if (state.remainingSec <= 0) {
+        clearInterval(state.timerId);
+        state.timerId = null;
+        endTimer();
+      }
+    }, 1000);
+  }
+
+  function endTimer() {
+    playEndSound();
+    setTimeout(function () {
+      showScreen("screen-post");
+    }, 1200);
+  }
+
+  // Web Audio によるシンプルな終了音（⚠️実機での鳴動は未検証）
+  function playEndSound() {
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      var ctx = new Ctx();
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.0);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 1.0);
+    } catch (e) {
+      // 音が鳴らせない環境でも画面遷移は継続する
+    }
+  }
+
+  function bindNoticingButton(id, key) {
+    var el = document.getElementById(id);
+    el.addEventListener("click", function () {
+      state[key]++;
+      el.classList.add("flash");
+      setTimeout(function () { el.classList.remove("flash"); }, 150);
+    });
+  }
+  bindNoticingButton("btn-kangae", "labelKangae");
+  bindNoticingButton("btn-fuan", "labelFuan");
+  bindNoticingButton("btn-keikaku", "labelKeikaku");
+
+  // --- 画面4: 後スコア ---
+  buildScoreButtons(document.getElementById("post-score-buttons"), function (score) {
+    state.postScore = score;
+    showResult();
+  });
+  document.getElementById("post-skip-btn").addEventListener("click", function () {
+    state.postScore = null;
+    showResult();
+  });
+
+  // --- 画面5: 結果表示（保存はまだしない） ---
+  function scoreLabel(v) {
+    return v === null ? "スキップ" : v;
+  }
+  function showResult() {
+    var list = document.getElementById("result-list");
+    list.innerHTML =
+      "<div><span>時間</span><span>" + state.durationMin + "分</span></div>" +
+      "<div><span>前の気分</span><span>" + scoreLabel(state.preScore) + "</span></div>" +
+      "<div><span>後の気分</span><span>" + scoreLabel(state.postScore) + "</span></div>" +
+      "<div><span>気づいた回数（考え事/不安/計画）</span><span>" +
+        state.labelKangae + " / " + state.labelFuan + " / " + state.labelKeikaku +
+      "</span></div>";
+    showScreen("screen-result");
+  }
+
+  document.getElementById("restart-btn").addEventListener("click", function () {
+    resetState();
+    showScreen("screen-time");
+  });
+})();
+</script>
+</body>
+</html>
