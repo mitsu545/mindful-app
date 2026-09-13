@@ -19,6 +19,14 @@ function doPost(e) {
       return jsonResponse({ ok: false, error: "シート「" + SHEET_NAME + "」が見つかりません" });
     }
 
+    if (data.quick) {
+      appendRow(sheet, {
+        timestamp: data.quick.timestamp,
+        type: "quick",
+        score: data.quick.score
+      });
+    }
+
     if (data.pre) {
       appendRow(sheet, {
         timestamp: data.pre.timestamp,
@@ -46,6 +54,40 @@ function doPost(e) {
   } catch (err) {
     return jsonResponse({ ok: false, error: String(err) });
   }
+}
+
+// ホーム画面の「今日の記録件数」用
+function doGet(e) {
+  try {
+    var secret = PropertiesService.getScriptProperties().getProperty("SECRET");
+    if (!secret || e.parameter.secret !== secret) {
+      return jsonResponse({ ok: false, error: "合言葉が違います" });
+    }
+
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+    if (!sheet) {
+      return jsonResponse({ ok: false, error: "シート「" + SHEET_NAME + "」が見つかりません" });
+    }
+
+    return jsonResponse({ ok: true, todayCount: countTodayRows(sheet) });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err) });
+  }
+}
+
+function countTodayRows(sheet) {
+  var values = sheet.getDataRange().getValues();
+  var tz = Session.getScriptTimeZone();
+  var todayStr = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd");
+  var count = 0;
+  for (var i = 1; i < values.length; i++) {
+    var raw = values[i][0];
+    if (!raw) continue;
+    var d = raw instanceof Date ? raw : new Date(raw);
+    if (isNaN(d.getTime())) continue;
+    if (Utilities.formatDate(d, tz, "yyyy-MM-dd") === todayStr) count++;
+  }
+  return count;
 }
 
 function appendRow(sheet, row) {
