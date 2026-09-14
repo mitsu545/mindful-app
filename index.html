@@ -239,8 +239,6 @@
   // 気分だけ記録で送信に失敗した分。ホーム画面に戻ってから再送できるようにする
   var pendingQuickPayload = null;
 
-  var MOOD_EMOJI = ["😞", "😕", "😐", "🙂", "😄"];
-
   var ANCHOR_TEXTS = [
     "足の裏の感覚に意識を向けましょう（床に触れている圧力・温度）",
     "坐骨の重みに意識を向けましょう（お尻や骨盤が座面に乗っている感覚）",
@@ -329,7 +327,7 @@
       (function (score) {
         var btn = document.createElement("button");
         btn.className = (extraClass ? extraClass + " " : "") + "mood-" + score;
-        btn.textContent = MOOD_EMOJI[score - 1];
+        btn.textContent = score;
         btn.setAttribute("aria-label", "気分 " + score);
         btn.addEventListener("click", function () { onSelect(score); });
         container.appendChild(btn);
@@ -496,7 +494,7 @@
 
   // --- 画面: 結果表示 ---
   function scoreLabel(v) {
-    return v === null ? "スキップ" : MOOD_EMOJI[v - 1] + " " + v;
+    return v === null ? "スキップ" : v;
   }
   function showResult() {
     var list = document.getElementById("result-list");
