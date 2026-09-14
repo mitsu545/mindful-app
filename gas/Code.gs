@@ -108,3 +108,20 @@ function jsonResponse(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
 }
+
+// 毎晩21時のトリガーから呼ぶ関数（Apps Scriptの「トリガー」画面で手動設定する）
+function checkDailyRecord() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  if (!sheet) return;
+  if (countTodayRows(sheet) === 0) {
+    notifyNoRecordToday();
+  }
+}
+
+// 通知を送る部分だけを切り出した関数。将来LINE等に差し替える場合はここだけ直せばよい
+function notifyNoRecordToday() {
+  var to = Session.getEffectiveUser().getEmail();
+  var subject = "【マインドフルネス】今日の記録がまだありません";
+  var body = "今日はまだ気分の記録がありません。\n1回だけでも「気分を記録」してみましょう。";
+  MailApp.sendEmail(to, subject, body);
+}
