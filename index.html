@@ -97,7 +97,6 @@
   .timer-ring-bg { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 10; }
   .timer-ring-progress { fill: none; stroke: #8fc7a4; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
   .timer-ring-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 2.6rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
-  #anchor-text { font-size: 1rem; line-height: 1.7; min-height: 3em; padding: 8px 20px 0; color: rgba(231,230,218,0.85); }
   .noticing-hint { font-size: 0.78rem; color: rgba(231,230,218,0.45); padding: 10px 0 2px; }
   .noticing-area { flex: 1; width: 100%; display: flex; flex-direction: column; }
   .noticing-btn {
@@ -201,7 +200,6 @@
       </svg>
       <div class="timer-ring-text" id="timer-display">00:00</div>
     </div>
-    <div id="anchor-text"></div>
   </div>
   <div class="noticing-hint">気づいたらタップ。そして、また呼吸に意識を戻しましょう</div>
   <div class="noticing-area">
@@ -251,12 +249,6 @@
 
   // 気分だけ記録で送信に失敗した分。ホーム画面に戻ってから再送できるようにする
   var pendingQuickPayload = null;
-
-  var ANCHOR_TEXTS = [
-    "足の裏の感覚に意識を向けましょう（床に触れている圧力・温度）",
-    "坐骨の重みに意識を向けましょう（お尻や骨盤が座面に乗っている感覚）",
-    "お腹の上下に意識を向けましょう（呼吸による自然な動き）"
-  ];
 
   function showScreen(id) {
     document.querySelectorAll(".screen").forEach(function (el) {
@@ -416,11 +408,6 @@
   var ringEl = document.getElementById("timer-ring-progress");
   ringEl.style.strokeDasharray = RING_CIRC;
 
-  function pickAnchorText() {
-    var i = Math.floor(Math.random() * ANCHOR_TEXTS.length);
-    return ANCHOR_TEXTS[i];
-  }
-
   function formatTime(sec) {
     var m = Math.floor(sec / 60);
     var s = sec % 60;
@@ -433,7 +420,6 @@
   }
 
   function startTimerFlow() {
-    document.getElementById("anchor-text").textContent = pickAnchorText();
     state.totalSec = state.durationMin * 60;
     state.remainingSec = state.totalSec;
     document.getElementById("timer-display").textContent = formatTime(state.remainingSec);
