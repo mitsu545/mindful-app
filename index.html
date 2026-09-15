@@ -98,6 +98,7 @@
   .timer-ring-progress { fill: none; stroke: #8fc7a4; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
   .timer-ring-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 2.6rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
   #anchor-text { font-size: 1rem; line-height: 1.7; min-height: 3em; padding: 8px 20px 0; color: rgba(231,230,218,0.85); }
+  .noticing-hint { font-size: 0.78rem; color: rgba(231,230,218,0.45); padding: 10px 0 2px; }
   .noticing-area { flex: 1; width: 100%; display: flex; flex-direction: column; }
   .noticing-btn {
     flex: 1;
@@ -116,10 +117,12 @@
     border-radius: 0;
     min-height: unset;
     box-shadow: none;
-    transition: background 0.15s ease;
+    transition: background 0.12s ease;
   }
-  .noticing-icon { font-size: 1.5rem; }
-  .noticing-btn.flash { background: rgba(143,199,164,0.16); color: rgba(231,230,218,0.9); }
+  .noticing-btn:active { background: rgba(255,255,255,0.1); }
+  .noticing-icon { font-size: 1.5rem; display: inline-block; transition: transform 0.2s cubic-bezier(.34,1.56,.64,1); }
+  .noticing-btn.flash { background: rgba(143,199,164,0.28); color: rgba(231,230,218,0.95); }
+  .noticing-btn.flash .noticing-icon { transform: scale(1.35); }
 
   /* 完了画面（気分だけ記録） */
   .done-mark { font-size: 3rem; margin-bottom: 12px; }
@@ -191,6 +194,7 @@
     </div>
     <div id="anchor-text"></div>
   </div>
+  <div class="noticing-hint">頭に浮かんだことに気づいたら、当てはまるものをタップ</div>
   <div class="noticing-area">
     <button class="noticing-btn" id="btn-kangae" data-label="考え事">
       <span class="noticing-icon">💭</span><span>考え事</span>
@@ -474,7 +478,7 @@
     el.addEventListener("click", function () {
       state[key]++;
       el.classList.add("flash");
-      setTimeout(function () { el.classList.remove("flash"); }, 150);
+      setTimeout(function () { el.classList.remove("flash"); }, 220);
     });
   }
   bindNoticingButton("btn-kangae", "labelKangae");
