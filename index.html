@@ -121,8 +121,17 @@
   }
   .noticing-btn:active { background: rgba(255,255,255,0.1); }
   .noticing-icon { font-size: 1.5rem; display: inline-block; transition: transform 0.2s cubic-bezier(.34,1.56,.64,1); }
-  .noticing-btn.flash { background: rgba(143,199,164,0.28); color: rgba(231,230,218,0.95); }
+  .noticing-btn.flash { background: rgba(143,199,164,0.28); color: rgba(231,230,218,0.95); animation: noticing-shake 0.24s ease; }
   .noticing-btn.flash .noticing-icon { transform: scale(1.35); }
+  @keyframes noticing-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-3px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .noticing-btn.flash { animation: none; }
+  }
 
   /* 完了画面（気分だけ記録） */
   .done-mark { font-size: 3rem; margin-bottom: 12px; }
@@ -194,7 +203,7 @@
     </div>
     <div id="anchor-text"></div>
   </div>
-  <div class="noticing-hint">頭に浮かんだことに気づいたら、当てはまるものをタップ</div>
+  <div class="noticing-hint">気づいたらタップ。そして、また呼吸に意識を戻しましょう</div>
   <div class="noticing-area">
     <button class="noticing-btn" id="btn-kangae" data-label="考え事">
       <span class="noticing-icon">💭</span><span>考え事</span>
@@ -248,7 +257,6 @@
     "坐骨の重みに意識を向けましょう（お尻や骨盤が座面に乗っている感覚）",
     "お腹の上下に意識を向けましょう（呼吸による自然な動き）"
   ];
-  var RAIN_TEXT = "感情を責めずにただ認め、お腹や胸の感覚に寄り添いましょう";
 
   function showScreen(id) {
     document.querySelectorAll(".screen").forEach(function (el) {
@@ -409,7 +417,6 @@
   ringEl.style.strokeDasharray = RING_CIRC;
 
   function pickAnchorText() {
-    if (state.preScore === 1 || state.preScore === 2) return RAIN_TEXT;
     var i = Math.floor(Math.random() * ANCHOR_TEXTS.length);
     return ANCHOR_TEXTS[i];
   }
