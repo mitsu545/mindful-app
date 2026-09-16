@@ -20,4 +20,7 @@ iPhone Web アプリ → GAS Web App → Google スプレッドシート
 
 ## 状態
 
-未着手（仕様確定済み）
+v1 のコードは揃った（手順1〜4）。残りは **手順5：公開して iPhone で実機確認**
+
+- 初回セットアップ：**[docs/setup.md](docs/setup.md)**（GAS の作成・合言葉・アプリの設定画面）
+- GAS のコード：[gas/Code.gs](gas/Code.gs)

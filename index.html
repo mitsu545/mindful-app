@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#111318">
+<title>mindful</title>
+<style>
+  /* ---- 全体 ---- */
+  :root {
+    --bg: #f6f5f2;
+    --fg: #1d1f24;
+    --sub: #6b6f78;
+    --accent: #3f6b5b;
+    --danger: #b3402f;
+    --card: #ffffff;
+    --dark: #111318;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg); color: var(--fg);
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .screen { display: none; min-height: 100vh; min-height: 100dvh; padding: 24px 20px; }
+  .screen.active { display: flex; flex-direction: column; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--sub); font-size: 14px; margin: 0 0 24px; }
+  button { font: inherit; border: 0; cursor: pointer; }
+  input { font: inherit; width: 100%; padding: 14px; border: 1px solid #d5d5d5; border-radius: 12px; margin-bottom: 14px; background: var(--card); }
+  label { font-size: 13px; color: var(--sub); display: block; margin-bottom: 6px; }
+
+  /* ---- 大ボタン（ホーム・時間選択・スコア） ---- */
+  .big {
+    width: 100%; padding: 26px; margin-bottom: 14px; border-radius: 18px;
+    background: var(--card); color: var(--fg); font-size: 20px; font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .big.primary { background: var(--accent); color: #fff; }
+  .big[disabled] { opacity: .45; }
+  .row { display: flex; gap: 10px; }
+  .row .big { flex: 1; padding: 22px 0; font-size: 22px; }
+  .row .big.on { outline: 3px solid var(--accent); }
+  .scores .big { padding: 22px 0; font-size: 26px; }
+  .link { background: none; color: var(--sub); text-decoration: underline; padding: 16px; font-size: 15px; align-self: center; }
+  .spacer { flex: 1; }
+
+  /* ---- 送信状態（成功は緑、失敗は赤＋再送ボタン） ---- */
+  .status { display: none; padding: 14px 16px; border-radius: 12px; font-size: 15px; margin-bottom: 14px; }
+  .status.ok { display: block; background: #e9f1ee; color: var(--accent); }
+  .status.ng { display: block; background: #f9e5e1; color: var(--danger); }
+  .status.wait { display: block; background: #eee; color: var(--sub); }
+  .retry { display: none; background: var(--danger); color: #fff; }
+  .retry.show { display: block; }
+
+  /* ---- タイマー画面：暗い背景・上下3分割の巨大ボタン ---- */
+  #timer { background: var(--dark); color: #e8e8e8; padding: 0; position: relative; }
+  #labels { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  #labels button {
+    flex: 1; background: transparent; color: rgba(255,255,255,.18); font-size: 15px;
+    border-top: 1px solid rgba(255,255,255,.06);
+    display: flex; align-items: center; justify-content: flex-start; padding-left: 20px; /* 中央の残り時間と重ねない */
+  }
+  #labels button:first-child { border-top: 0; }
+  #overlay {
+    position: absolute; inset: 0; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 24px;
+  }
+  #remain { font-size: 72px; font-weight: 200; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
+  #anchor { font-size: 17px; color: rgba(255,255,255,.7); margin-top: 12px; line-height: 1.5; }
+
+  /* ---- 完了画面 ---- */
+  .remind { background: #e9f1ee; border-left: 4px solid var(--accent); padding: 14px 16px; border-radius: 10px; font-size: 15px; line-height: 1.6; margin: 0 0 20px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 20px; }
+  td { padding: 8px 4px; border-bottom: 1px solid #e6e6e6; }
+  td:first-child { color: var(--sub); width: 42%; }
+</style>
+</head>
+<body>
+
+<!-- ① ホーム -->
+<section id="home" class="screen active">
+  <h1>mindful</h1>
+  <p class="sub">今日の記録：<span id="todayCount">0</span> 件</p>
+  <button class="big" data-go="quick">気分を記録</button>
+  <button class="big primary" data-go="duration">瞑想する</button>
+  <div class="spacer"></div>
+  <button class="link" data-go="settings">設定</button>
+</section>
+
+<!-- ② 気分だけ記録：1タップで送信 -->
+<section id="quick" class="screen">
+  <h1>今の気分は？</h1>
+  <p class="sub">1＝とても悪い 〜 5＝とても良い</p>
+  <div class="row scores" data-score="quick"></div>
+  <div id="quickStatus" class="status"></div>
+  <button class="big retry" id="quickRetry">再送する</button>
+  <div class="spacer"></div>
+  <button class="link" data-go="home">ホームへ戻る</button>
+</section>
+
+<!-- ③-1 時間選択 -->
+<section id="duration" class="screen">
+  <h1>何分やる？</h1>
+  <p class="sub">疲れた日は 1 分でも OK</p>
+  <div class="row" id="durations"></div>
+  <div class="spacer"></div>
+  <button class="big primary" id="toPre">次へ</button>
+  <button class="link" data-go="home">ホームへ戻る</button>
+</section>
+
+<!-- ③-2 前スコア -->
+<section id="pre" class="screen">
+  <h1>今の気分は？</h1>
+  <p class="sub">1＝とても悪い 〜 5＝とても良い</p>
+  <div class="row scores" data-score="pre"></div>
+  <div class="spacer"></div>
+  <button class="link" id="skipPre">スキップ</button>
+</section>
+
+<!-- ③-3 タイマー -->
+<section id="timer" class="screen">
+  <div id="labels">
+    <button data-label="kangae">考え事</button>
+    <button data-label="fuan">不安</button>
+    <button data-label="keikaku">計画</button>
+  </div>
+  <div id="overlay">
+    <div id="remain">3:00</div>
+    <div id="anchor"></div>
+  </div>
+</section>
+
+<!-- ③-4 後スコア -->
+<section id="post" class="screen">
+  <h1>終わりました。今の気分は？</h1>
+  <p class="sub">1＝とても悪い 〜 5＝とても良い</p>
+  <div class="row scores" data-score="post"></div>
+  <div class="spacer"></div>
+  <button class="link" id="skipPost">スキップ</button>
+</section>
+
+<!-- ③-5 完了（非判断リマインド） -->
+<section id="done" class="screen">
+  <h1>おつかれさま</h1>
+  <p class="remind">雑念に気づいて戻した回数こそが、脳のトレーニング成果です。</p>
+  <div id="doneStatus" class="status"></div>
+  <button class="big retry" id="doneRetry">再送する</button>
+  <table id="result"></table>
+  <div class="spacer"></div>
+  <button class="big primary" data-go="home">ホームへ</button>
+</section>
+
+<!-- 設定：GAS の URL と合言葉（この端末の中だけに保存。リポジトリには入れない） -->
+<section id="settings" class="screen">
+  <h1>設定</h1>
+  <p class="sub">GAS Web App の URL と合言葉を入れると送信できます</p>
+  <label for="cfgUrl">GAS Web App URL</label>
+  <input id="cfgUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
+  <label for="cfgSecret">合言葉</label>
+  <input id="cfgSecret" type="password" autocomplete="off">
+  <button class="big primary" id="saveCfg">保存</button>
+  <div id="cfgStatus" class="status"></div>
+  <div class="spacer"></div>
+  <button class="link" data-go="home">ホームへ戻る</button>
+</section>
+
+<script>
+(() => {
+  'use strict';
+  const DURATIONS = [1, 3, 5, 8, 10];          // 仕様 4-1
+  const ANCHORS = [                             // 仕様 4-2（1行ずつ）
+    '足の裏の感覚。床に触れている圧力や温度に気づく',
+    '坐骨の重み。椅子に乗っているお尻と骨盤を感じる',
+    'お腹の上下。呼吸で動くお腹をただ眺める',
+  ];
+  const RAIN = '感情を責めずにただ認め、お腹や胸の感覚に寄り添いましょう';  // 前スコア1〜2のとき
+  const ANCHOR_SWITCH_SEC = 40;                 // アンカー文言を切り替える間隔
+  const CFG_KEY = 'mindful.config';             // localStorage のキー（URL と合言葉）
+  const COUNT_KEY = 'mindful.todayCount';       // localStorage のキー（今日の送信成功件数）
+
+  const $ = (sel) => document.querySelector(sel);
+  let session = null;                           // 現在の瞑想セッション
+  let timerId = null, anchorId = null, wakeLock = null;
+  let pendingQuick = null, pendingDone = null;  // 送信失敗時に再送するデータ
+
+  // ---- 画面遷移 ----
+  function go(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id));
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
+
+  // ---- 設定（localStorage） ----
+  function loadCfg() {
+    try { return JSON.parse(localStorage.getItem(CFG_KEY)) || {}; } catch (e) { return {}; }
+  }
+  $('#saveCfg').addEventListener('click', () => {
+    const cfg = { url: $('#cfgUrl').value.trim(), secret: $('#cfgSecret').value };
+    try {
+      localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+      setStatus('#cfgStatus', 'ok', '保存しました');
+    } catch (e) {
+      setStatus('#cfgStatus', 'ng', 'この端末では保存できませんでした');
+    }
+  });
+  document.querySelector('[data-go="settings"]').addEventListener('click', () => {
+    const cfg = loadCfg();
+    $('#cfgUrl').value = cfg.url || '';
+    $('#cfgSecret').value = cfg.secret || '';
+    setStatus('#cfgStatus', null);
+  });
+
+  // ---- 今日の件数（端末内カウント。日付が変わればリセット） ----
+  function todayStr() { return fmt(new Date()).slice(0, 10); }
+  function loadCount() {
+    try {
+      const c = JSON.parse(localStorage.getItem(COUNT_KEY)) || {};
+      return c.date === todayStr() ? c.n : 0;
+    } catch (e) { return 0; }
+  }
+  function addCount(n) {
+    const total = loadCount() + n;
+    try { localStorage.setItem(COUNT_KEY, JSON.stringify({ date: todayStr(), n: total })); } catch (e) {}
+    $('#todayCount').textContent = total;
+  }
+  $('#todayCount').textContent = loadCount();
+
+  // ---- 送信（GAS doPost）。失敗したら例外を投げる ----
+  async function send(records) {
+    const cfg = loadCfg();
+    if (!cfg.url) throw new Error('設定で GAS の URL を入れてください');
+    const res = await fetch(cfg.url, {
+      method: 'POST',
+      body: JSON.stringify({ secret: cfg.secret, records }),   // Content-Type を付けない＝プリフライト不要
+    });
+    if (!res.ok) throw new Error('サーバーが応答しません（' + res.status + '）');
+    let data;
+    try { data = await res.json(); } catch (e) { throw new Error('URL が GAS の Web App ではないようです'); }
+    if (!data.ok) throw new Error(data.error === 'unauthorized' ? '合言葉が違います' : ('送信エラー: ' + data.error));
+    addCount(records.length);
+  }
+
+  function setStatus(sel, kind, text) {
+    const el = $(sel);
+    el.className = 'status' + (kind ? ' ' + kind : '');
+    el.textContent = text || '';
+  }
+
+  // ---- 時間選択（初期値 3分） ----
+  let duration = 3;
+  const durBox = $('#durations');
+  DURATIONS.forEach(m => {
+    const b = document.createElement('button');
+    b.className = 'big' + (m === duration ? ' on' : '');
+    b.textContent = m + '分';
+    b.addEventListener('click', () => {
+      duration = m;
+      durBox.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    });
+    durBox.appendChild(b);
+  });
+
+  // ---- スコアボタン（気分だけ・前・後 共通） ----
+  document.querySelectorAll('[data-score]').forEach(box => {
+    for (let s = 1; s <= 5; s++) {
+      const b = document.createElement('button');
+      b.className = 'big';
+      b.textContent = s;
+      b.addEventListener('click', () => onScore(box.dataset.score, s));
+      box.appendChild(b);
+    }
+  });
+  $('#skipPre').addEventListener('click', () => onScore('pre', null));
+  $('#skipPost').addEventListener('click', () => onScore('post', null));
+
+  function onScore(kind, score) {
+    if (kind === 'quick') return sendQuick(score);
+    session[kind] = score;
+    if (kind === 'pre') startTimer();
+    else finish();
+  }
+
+  // ---- ② 気分だけ記録：即送信 → 完了表示 → 自動でホームへ ----
+  async function sendQuick(score) {
+    pendingQuick = [{ timestamp: fmt(new Date()), type: 'quick', score }];
+    $('#quickRetry').classList.remove('show');
+    setStatus('#quickStatus', 'wait', '送信中…');
+    try {
+      await send(pendingQuick);
+      setStatus('#quickStatus', 'ok', '記録しました');
+      setTimeout(() => { setStatus('#quickStatus', null); go('home'); }, 1200);
+    } catch (e) {
+      setStatus('#quickStatus', 'ng', '送信できませんでした：' + e.message);
+      $('#quickRetry').classList.add('show');
+    }
+  }
+  $('#quickRetry').addEventListener('click', () => pendingQuick && sendQuick(pendingQuick[0].score));
+
+  // ---- ③ 瞑想 開始 ----
+  $('#toPre').addEventListener('click', () => {
+    session = {
+      session_id: 's-' + String(Date.now()).slice(-6),
+      duration_min: duration,
+      pre: null, post: null,
+      label_kangae: 0, label_fuan: 0, label_keikaku: 0,
+    };
+    unlockAudio();   // iOS は「ユーザー操作の中」で音を許可する必要がある
+    go('pre');
+  });
+
+  // ---- タイマー ----
+  function startTimer() {
+    const endAt = Date.now() + session.duration_min * 60 * 1000;   // 端末のスリープ等でも狂わないよう終了時刻で管理
+    const lowMood = session.pre !== null && session.pre <= 2;
+    let anchorIdx = 0;
+    $('#anchor').textContent = lowMood ? RAIN : ANCHORS[0];
+    if (!lowMood) {
+      anchorId = setInterval(() => {
+        anchorIdx = (anchorIdx + 1) % ANCHORS.length;
+        $('#anchor').textContent = ANCHORS[anchorIdx];
+      }, ANCHOR_SWITCH_SEC * 1000);
+    }
+    go('timer');
+    requestWakeLock();
+    tick(endAt);
+    timerId = setInterval(() => tick(endAt), 250);
+  }
+
+  function tick(endAt) {
+    const left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+    $('#remain').textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+    if (left <= 0) {
+      clearInterval(timerId); clearInterval(anchorId);
+      releaseWakeLock();
+      playBell();
+      go('post');
+    }
+  }
+
+  // 雑念ボタン：画面も音も変えず、回数だけ数える（仕様 4-3）
+  $('#labels').addEventListener('click', (e) => {
+    const key = e.target.dataset.label;
+    if (key && session) session['label_' + key]++;
+  });
+
+  // ---- ③ 終了：前後2行をスプレッドシートへ ----
+  function finish() {
+    const ts = fmt(new Date());
+    const base = { session_id: session.session_id, duration_min: session.duration_min };
+    pendingDone = [
+      { timestamp: ts, type: 'pre',  score: session.pre,  ...base },
+      { timestamp: ts, type: 'post', score: session.post, ...base,
+        label_kangae: session.label_kangae, label_fuan: session.label_fuan, label_keikaku: session.label_keikaku },
+    ];
+    const view = { ...pendingDone[1], pre: session.pre ?? '（スキップ）', post: session.post ?? '（スキップ）' };
+    delete view.type; delete view.score;
+    $('#result').innerHTML = Object.entries(view)
+      .map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+    go('done');
+    sendDone();
+  }
+
+  async function sendDone() {
+    $('#doneRetry').classList.remove('show');
+    setStatus('#doneStatus', 'wait', '保存中…');
+    try {
+      await send(pendingDone);
+      setStatus('#doneStatus', 'ok', 'スプレッドシートに保存しました');
+    } catch (e) {
+      setStatus('#doneStatus', 'ng', '保存できませんでした：' + e.message);
+      $('#doneRetry').classList.add('show');
+    }
+  }
+  $('#doneRetry').addEventListener('click', sendDone);
+
+  function fmt(d) {
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+
+  // ---- 終了音（Web Audio、バイブは iOS 非対応のため未実装） ----
+  let audioCtx = null;
+  function unlockAudio() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    } catch (e) { audioCtx = null; }
+  }
+  function playBell() {
+    if (!audioCtx) return;
+    try {
+      const t = audioCtx.currentTime;
+      [0, 0.6].forEach((delay) => {          // 2回鳴らす
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine'; osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.0001, t + delay);
+        gain.gain.exponentialRampToValueAtTime(0.4, t + delay + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + delay + 1.2);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(t + delay); osc.stop(t + delay + 1.3);
+      });
+    } catch (e) { /* 音が出なくても処理は続ける */ }
+  }
+
+  // ---- 画面を消さない（対応端末のみ。失敗しても無視） ----
+  async function requestWakeLock() {
+    try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { wakeLock = null; }
+  }
+  function releaseWakeLock() {
+    try { wakeLock && wakeLock.release(); } catch (e) {} finally { wakeLock = null; }
+  }
+})();
+</script>
+</body>
+</html>
