@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>マインドフルネス</title>
+<style>
+  :root {
+    --bg: #f4f1ea;
+    --surface: #ffffff;
+    --text: #262a20;
+    --text-muted: #767a6c;
+    --accent: #3f6b52;
+    --accent-dark: #2c4d3c;
+    --accent-soft: #e2ebe1;
+    --clay: #b5714f;
+    --clay-soft: #f1e3d6;
+    --danger: #b6503a;
+    --radius-lg: 20px;
+    --radius-md: 14px;
+    --shadow: 0 4px 16px rgba(38, 40, 31, 0.08);
+    --dark-bg: #10140d;
+    --dark-text: #e7e6da;
+    --mood-1: #b6503a;
+    --mood-2: #c98a5e;
+    --mood-3: #b7a662;
+    --mood-4: #7fa06c;
+    --mood-5: #3f6b52;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-font-smoothing: antialiased;
+  }
+  .screen { display: none; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 28px 20px; text-align: center; }
+  .screen.active { display: flex; }
+  h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.01em; margin: 0 0 28px; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  button {
+    font-family: inherit;
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 16px 22px;
+    min-width: 56px;
+    min-height: 56px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
+  }
+  button.secondary { background: var(--surface); color: var(--accent); border: 1px solid var(--accent-soft); box-shadow: none; }
+  button:active { transform: scale(0.96); opacity: 0.85; box-shadow: none; }
+
+  /* ホーム画面 */
+  .home-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
+  .home-sub { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 32px; }
+  .home-cards { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; }
+  .home-card {
+    width: 100%;
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: 26px 20px;
+    text-align: center;
+    color: var(--text);
+    font-size: 1.15rem;
+    font-weight: 700;
+    min-height: 96px;
+  }
+  .home-card .emoji { display: block; font-size: 1.8rem; margin-bottom: 8px; }
+  .home-card.primary { background: var(--accent); color: #fff; }
+  .home-card.secondary-nature { background: var(--clay-soft); color: var(--accent-dark); }
+  .today-count { margin-top: 28px; font-size: 0.95rem; color: var(--text-muted); min-height: 1.4em; }
+  .today-count strong { color: var(--accent-dark); font-size: 1.1rem; }
+
+  /* スコア選択の共通ボタン（気分の波を色でも表す：赤土→オリーブ→深緑） */
+  .score-btn { min-width: 60px; min-height: 60px; border-radius: 50%; font-size: 1.6rem; padding: 0; }
+  .score-btn.mood-1 { background: var(--mood-1); }
+  .score-btn.mood-2 { background: var(--mood-2); }
+  .score-btn.mood-3 { background: var(--mood-3); }
+  .score-btn.mood-4 { background: var(--mood-4); }
+  .score-btn.mood-5 { background: var(--mood-5); }
+
+  /* タイマー画面 */
+  #screen-timer { background: var(--dark-bg); color: var(--dark-text); padding: 0; }
+  #screen-timer .timer-top { padding: 44px 24px 8px; }
+  .timer-ring-wrap { position: relative; width: 208px; height: 208px; margin: 0 auto; }
+  .timer-ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .timer-ring-bg { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 10; }
+  .timer-ring-progress { fill: none; stroke: #8fc7a4; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+  .timer-ring-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 2.6rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+  .noticing-hint { font-size: 0.78rem; color: rgba(231,230,218,0.45); padding: 10px 0 2px; }
+  .noticing-area { flex: 1; width: 100%; display: flex; flex-direction: column; }
+  .noticing-btn {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    color: rgba(231,230,218,0.6);
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-radius: 0;
+    min-height: unset;
+    box-shadow: none;
+    transition: background 0.12s ease;
+  }
+  .noticing-btn:active { background: rgba(255,255,255,0.1); }
+  .noticing-icon { font-size: 1.5rem; display: inline-block; transition: transform 0.2s cubic-bezier(.34,1.56,.64,1); }
+  .noticing-btn.flash { background: rgba(143,199,164,0.28); color: rgba(231,230,218,0.95); animation: noticing-shake 0.24s ease; }
+  .noticing-btn.flash .noticing-icon { transform: scale(1.35); }
+  @keyframes noticing-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-3px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .noticing-btn.flash { animation: none; }
+  }
+
+  /* 完了画面（気分だけ記録） */
+  .done-mark { font-size: 3rem; margin-bottom: 12px; }
+  .done-text { font-size: 1.15rem; font-weight: 700; }
+
+  /* 結果画面 */
+  .result-card { width: 100%; max-width: 320px; background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 20px 22px; margin-bottom: 20px; }
+  .result-card div { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--accent-soft); font-size: 0.95rem; }
+  .result-card div:last-child { border-bottom: none; }
+  .reminder { background: var(--accent-soft); color: var(--accent-dark); border-radius: var(--radius-md); padding: 16px 18px; margin-bottom: 20px; font-size: 0.95rem; line-height: 1.6; max-width: 320px; }
+
+  /* 保存状態 */
+  #save-status { font-size: 0.9rem; margin-bottom: 12px; min-height: 1.4em; }
+  #save-status.error { color: var(--danger); }
+  #save-status.ok { color: var(--accent); }
+  #home-error-banner { color: var(--danger); font-size: 0.85rem; margin-top: 8px; }
+</style>
+</head>
+<body>
+<script src="config.local.js" onerror="window.APP_CONFIG = null;"></script>
+
+<section id="screen-home" class="screen active">
+  <div class="home-title">🌿 マインドフルネス</div>
+  <div class="home-sub">今日の気分と、瞑想の記録</div>
+  <div class="home-cards">
+    <button class="home-card primary" id="go-quick-btn">
+      <span class="emoji">📝</span>気分を記録
+    </button>
+    <button class="home-card secondary-nature" id="go-session-btn">
+      <span class="emoji">🧘</span>瞑想する
+    </button>
+  </div>
+  <div class="today-count" id="today-count"></div>
+  <div id="home-error-banner" hidden>
+    直前の記録が保存できませんでした
+    <div style="margin-top:8px;"><button class="secondary" id="home-retry-btn">再送する</button></div>
+  </div>
+</section>
+
+<section id="screen-quick" class="screen">
+  <h1>今の気分は？</h1>
+  <div class="btn-row" id="quick-score-buttons"></div>
+</section>
+
+<section id="screen-quick-done" class="screen">
+  <div class="done-mark">✅</div>
+  <div class="done-text">記録しました</div>
+</section>
+
+<section id="screen-time" class="screen">
+  <h1>瞑想する時間を選んでください</h1>
+  <div class="btn-row" id="duration-buttons"></div>
+</section>
+
+<section id="screen-pre" class="screen">
+  <h1>今の気分は？</h1>
+  <div class="btn-row" id="pre-score-buttons"></div>
+  <button class="secondary" id="pre-skip-btn" style="margin-top:16px;">スキップ</button>
+</section>
+
+<section id="screen-timer" class="screen">
+  <div class="timer-top">
+    <div class="timer-ring-wrap">
+      <svg class="timer-ring" viewBox="0 0 200 200">
+        <circle class="timer-ring-bg" cx="100" cy="100" r="88"></circle>
+        <circle class="timer-ring-progress" id="timer-ring-progress" cx="100" cy="100" r="88"></circle>
+      </svg>
+      <div class="timer-ring-text" id="timer-display">00:00</div>
+    </div>
+  </div>
+  <div class="noticing-hint">気づいたらタップ。そして、また呼吸に意識を戻しましょう</div>
+  <div class="noticing-area">
+    <button class="noticing-btn" id="btn-kangae" data-label="考え事">
+      <span class="noticing-icon">💭</span><span>考え事</span>
+    </button>
+    <button class="noticing-btn" id="btn-fuan" data-label="不安">
+      <span class="noticing-icon">😟</span><span>不安</span>
+    </button>
+    <button class="noticing-btn" id="btn-keikaku" data-label="タスク">
+      <span class="noticing-icon">✅</span><span>タスク</span>
+    </button>
+  </div>
+</section>
+
+<section id="screen-post" class="screen">
+  <h1>終わりました。今の気分は？</h1>
+  <div class="btn-row" id="post-score-buttons"></div>
+  <button class="secondary" id="post-skip-btn" style="margin-top:16px;">スキップ</button>
+</section>
+
+<section id="screen-result" class="screen">
+  <h1>おつかれさまでした</h1>
+  <div class="reminder">雑念に気づいて戻した回数こそが、脳のトレーニング成果です</div>
+  <div class="result-card" id="result-list"></div>
+  <div id="save-status"></div>
+  <button class="secondary" id="retry-save-btn" hidden>再送する</button>
+  <button id="restart-btn">ホームに戻る</button>
+</section>
+
+<script>
+(function () {
+  var state = {
+    sessionId: null,
+    durationMin: 3,
+    totalSec: 0,
+    preScore: null,
+    preTimestamp: null,
+    postScore: null,
+    postTimestamp: null,
+    labelKangae: 0,
+    labelFuan: 0,
+    labelKeikaku: 0,
+    remainingSec: 0,
+    timerId: null
+  };
+
+  // 気分だけ記録で送信に失敗した分。ホーム画面に戻ってから再送できるようにする
+  var pendingQuickPayload = null;
+
+  function showScreen(id) {
+    document.querySelectorAll(".screen").forEach(function (el) {
+      el.classList.remove("active");
+    });
+    document.getElementById(id).classList.add("active");
+  }
+
+  function resetSessionState() {
+    state.sessionId = null;
+    state.durationMin = 3;
+    state.totalSec = 0;
+    state.preScore = null;
+    state.preTimestamp = null;
+    state.postScore = null;
+    state.postTimestamp = null;
+    state.labelKangae = 0;
+    state.labelFuan = 0;
+    state.labelKeikaku = 0;
+    state.remainingSec = 0;
+    if (state.timerId) {
+      clearInterval(state.timerId);
+      state.timerId = null;
+    }
+  }
+
+  function makeSessionId() {
+    return "s-" + Date.now() + "-" + Math.floor(Math.random() * 1000);
+  }
+
+  function gasSecret() {
+    return window.APP_CONFIG ? window.APP_CONFIG.secret : "";
+  }
+
+  // --- 画面0: ホーム ---
+  function goHome() {
+    showScreen("screen-home");
+    refreshTodayCount();
+  }
+
+  document.getElementById("go-quick-btn").addEventListener("click", function () {
+    showScreen("screen-quick");
+  });
+  document.getElementById("go-session-btn").addEventListener("click", function () {
+    resetSessionState();
+    showScreen("screen-time");
+  });
+
+  var todayCountEl = document.getElementById("today-count");
+  function refreshTodayCount() {
+    if (!window.APP_CONFIG || !window.APP_CONFIG.gasUrl) {
+      todayCountEl.textContent = "";
+      return;
+    }
+    todayCountEl.textContent = "今日の記録を確認中…";
+    var url = window.APP_CONFIG.gasUrl + "?secret=" + encodeURIComponent(gasSecret());
+    fetch(url)
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          todayCountEl.innerHTML = "今日の記録：<strong>" + data.todayCount + "件</strong>";
+        } else {
+          todayCountEl.textContent = "";
+        }
+      })
+      .catch(function () {
+        todayCountEl.textContent = "";
+      });
+  }
+
+  var homeErrorBanner = document.getElementById("home-error-banner");
+  document.getElementById("home-retry-btn").addEventListener("click", function () {
+    if (pendingQuickPayload) sendQuickPayload(pendingQuickPayload);
+  });
+
+  // --- 気分ボタン（絵文字＋色でスコアを表す） ---
+  function buildScoreButtons(container, onSelect, extraClass) {
+    container.innerHTML = "";
+    for (var v = 1; v <= 5; v++) {
+      (function (score) {
+        var btn = document.createElement("button");
+        btn.className = (extraClass ? extraClass + " " : "") + "mood-" + score;
+        btn.textContent = score;
+        btn.setAttribute("aria-label", "気分 " + score);
+        btn.addEventListener("click", function () { onSelect(score); });
+        container.appendChild(btn);
+      })(v);
+    }
+  }
+
+  buildScoreButtons(document.getElementById("quick-score-buttons"), function (score) {
+    var payload = {
+      secret: gasSecret(),
+      quick: { timestamp: new Date().toISOString(), score: score }
+    };
+    showScreen("screen-quick-done");
+    sendQuickPayload(payload);
+    setTimeout(goHome, 1100);
+  }, "score-btn");
+
+  function sendQuickPayload(payload) {
+    if (!window.APP_CONFIG || !window.APP_CONFIG.gasUrl) {
+      pendingQuickPayload = payload;
+      return;
+    }
+    fetch(window.APP_CONFIG.gasUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          pendingQuickPayload = null;
+          homeErrorBanner.hidden = true;
+          refreshTodayCount();
+        } else {
+          pendingQuickPayload = payload;
+          homeErrorBanner.hidden = false;
+        }
+      })
+      .catch(function () {
+        pendingQuickPayload = payload;
+        homeErrorBanner.hidden = false;
+      });
+  }
+
+  // --- 画面: 時間選択 ---
+  var DURATIONS = [1, 3, 5, 8, 10];
+  var durationButtonsEl = document.getElementById("duration-buttons");
+  DURATIONS.forEach(function (min) {
+    var btn = document.createElement("button");
+    btn.textContent = min + "分";
+    if (min === 3) btn.style.outline = "3px solid var(--accent-dark)";
+    btn.addEventListener("click", function () {
+      state.durationMin = min;
+      state.sessionId = makeSessionId();
+      showScreen("screen-pre");
+    });
+    durationButtonsEl.appendChild(btn);
+  });
+
+  // --- 画面: 前スコア ---
+  buildScoreButtons(document.getElementById("pre-score-buttons"), function (score) {
+    state.preScore = score;
+    state.preTimestamp = new Date().toISOString();
+    startTimerFlow();
+  }, "score-btn");
+  document.getElementById("pre-skip-btn").addEventListener("click", function () {
+    state.preScore = null;
+    startTimerFlow();
+  });
+
+  // --- 画面: タイマー（円形プログレス） ---
+  var RING_R = 88;
+  var RING_CIRC = 2 * Math.PI * RING_R;
+  var ringEl = document.getElementById("timer-ring-progress");
+  ringEl.style.strokeDasharray = RING_CIRC;
+
+  function formatTime(sec) {
+    var m = Math.floor(sec / 60);
+    var s = sec % 60;
+    return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  function updateRing() {
+    var frac = state.totalSec > 0 ? state.remainingSec / state.totalSec : 0;
+    ringEl.style.strokeDashoffset = RING_CIRC * (1 - frac);
+  }
+
+  function startTimerFlow() {
+    state.totalSec = state.durationMin * 60;
+    state.remainingSec = state.totalSec;
+    document.getElementById("timer-display").textContent = formatTime(state.remainingSec);
+    updateRing();
+    showScreen("screen-timer");
+
+    state.timerId = setInterval(function () {
+      state.remainingSec--;
+      document.getElementById("timer-display").textContent = formatTime(state.remainingSec);
+      updateRing();
+      if (state.remainingSec <= 0) {
+        clearInterval(state.timerId);
+        state.timerId = null;
+        endTimer();
+      }
+    }, 1000);
+  }
+
+  function endTimer() {
+    playEndSound();
+    setTimeout(function () {
+      showScreen("screen-post");
+    }, 1200);
+  }
+
+  // Web Audio によるシンプルな終了音（⚠️実機での鳴動は未検証）
+  function playEndSound() {
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      var ctx = new Ctx();
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.0);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 1.0);
+    } catch (e) {
+      // 音が鳴らせない環境でも画面遷移は継続する
+    }
+  }
+
+  function bindNoticingButton(id, key) {
+    var el = document.getElementById(id);
+    el.addEventListener("click", function () {
+      state[key]++;
+      el.classList.add("flash");
+      setTimeout(function () { el.classList.remove("flash"); }, 220);
+    });
+  }
+  bindNoticingButton("btn-kangae", "labelKangae");
+  bindNoticingButton("btn-fuan", "labelFuan");
+  bindNoticingButton("btn-keikaku", "labelKeikaku");
+
+  // --- 画面: 後スコア ---
+  buildScoreButtons(document.getElementById("post-score-buttons"), function (score) {
+    state.postScore = score;
+    state.postTimestamp = new Date().toISOString();
+    showResult();
+  }, "score-btn");
+  document.getElementById("post-skip-btn").addEventListener("click", function () {
+    state.postScore = null;
+    showResult();
+  });
+
+  // --- 画面: 結果表示 ---
+  function scoreLabel(v) {
+    return v === null ? "スキップ" : v;
+  }
+  function showResult() {
+    var list = document.getElementById("result-list");
+    list.innerHTML =
+      "<div><span>時間</span><span>" + state.durationMin + "分</span></div>" +
+      "<div><span>前の気分</span><span>" + scoreLabel(state.preScore) + "</span></div>" +
+      "<div><span>後の気分</span><span>" + scoreLabel(state.postScore) + "</span></div>" +
+      "<div><span>気づいた回数（考え事/不安/タスク）</span><span>" +
+        state.labelKangae + " / " + state.labelFuan + " / " + state.labelKeikaku +
+      "</span></div>";
+    showScreen("screen-result");
+    saveSession();
+  }
+
+  // --- 保存（GAS Web Appへ送信） ---
+  var saveStatusEl = document.getElementById("save-status");
+  var retryBtn = document.getElementById("retry-save-btn");
+
+  function buildSessionPayload() {
+    var payload = {
+      secret: gasSecret(),
+      session_id: state.sessionId,
+      duration_min: state.durationMin,
+      label_kangae: state.labelKangae,
+      label_fuan: state.labelFuan,
+      label_keikaku: state.labelKeikaku
+    };
+    if (state.preScore !== null) {
+      payload.pre = { timestamp: state.preTimestamp, score: state.preScore };
+    }
+    if (state.postScore !== null) {
+      payload.post = { timestamp: state.postTimestamp, score: state.postScore };
+    }
+    return payload;
+  }
+
+  function saveSession() {
+    if (!window.APP_CONFIG || !window.APP_CONFIG.gasUrl) {
+      showSaveStatus("error", "GASの設定がまだのため保存されていません");
+      retryBtn.hidden = true;
+      return;
+    }
+    if (state.preScore === null && state.postScore === null) {
+      // 前後ともスキップした場合は送るデータがない
+      return;
+    }
+
+    showSaveStatus("", "保存中…");
+    retryBtn.hidden = true;
+
+    // text/plain で送るとブラウザのCORSプリフライトを避けられる（GAS側でJSONとして読む）
+    fetch(window.APP_CONFIG.gasUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(buildSessionPayload())
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          showSaveStatus("ok", "保存しました");
+        } else {
+          showSaveStatus("error", "保存に失敗しました：" + (data.error || "不明なエラー"));
+          retryBtn.hidden = false;
+        }
+      })
+      .catch(function () {
+        showSaveStatus("error", "保存に失敗しました（通信エラー）");
+        retryBtn.hidden = false;
+      });
+  }
+
+  function showSaveStatus(cls, text) {
+    saveStatusEl.className = cls;
+    saveStatusEl.textContent = text;
+  }
+
+  retryBtn.addEventListener("click", saveSession);
+
+  document.getElementById("restart-btn").addEventListener("click", goHome);
+
+  refreshTodayCount();
+})();
+</script>
+</body>
+</html>
