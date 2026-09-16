@@ -120,8 +120,30 @@ function checkDailyRecord() {
 
 // 通知を送る部分だけを切り出した関数。将来LINE等に差し替える場合はここだけ直せばよい
 function notifyNoRecordToday() {
+  sendReminderEmail(
+    "【マインドフルネス】今日の記録がまだありません",
+    "今日はまだ気分の記録がありません。\n1回だけでも「気分を記録」してみましょう。"
+  );
+}
+
+// 毎時のトリガーから呼ぶ関数（8〜21時の間だけ、ランダムな確率で気分記録を促すメールを送る）
+// 1時間ごとに呼ばれる前提。13時間(8〜20時台)×MOOD_PROMPT_PROBABILITYが1日あたりの平均送信回数
+// 回数を増減したいときはこの数値だけ変えればよい（0.2なら平均2〜3回/日）
+var MOOD_PROMPT_PROBABILITY = 0.2;
+
+function maybeSendMoodPrompt() {
+  var hour = new Date().getHours();
+  if (hour < 8 || hour >= 21) return;
+  if (Math.random() > MOOD_PROMPT_PROBABILITY) return;
+
+  sendReminderEmail(
+    "【マインドフルネス】今の気分はいかがですか？",
+    "少し手を止めて、今の気分を記録してみましょう。"
+  );
+}
+
+// メール送信そのものを切り出した関数。将来LINE等に差し替える場合はここだけ直せばよい
+function sendReminderEmail(subject, body) {
   var to = Session.getEffectiveUser().getEmail();
-  var subject = "【マインドフルネス】今日の記録がまだありません";
-  var body = "今日はまだ気分の記録がありません。\n1回だけでも「気分を記録」してみましょう。";
   MailApp.sendEmail(to, subject, body);
 }
