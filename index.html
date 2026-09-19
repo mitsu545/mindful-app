@@ -255,6 +255,31 @@ window.APP_CONFIG = {
   // 気分だけ記録で送信に失敗した分。ホーム画面に戻ってから再送できるようにする
   var pendingQuickPayload = null;
 
+  // --- 終了音の準備（iOS Safariは「タップの直後」以外で音を鳴らすのをブロックするため、
+  // アプリを開いて最初にどこかをタップした瞬間に音の再生を許可させておく） ---
+  var audioCtx = null;
+  function unlockAudio() {
+    try {
+      if (!audioCtx) {
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new Ctx();
+      }
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+      // 無音バッファを1つ再生し、確実にアンロックする
+      var buffer = audioCtx.createBuffer(1, 1, 22050);
+      var source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioCtx.destination);
+      source.start(0);
+    } catch (e) {
+      // Web Audio非対応の環境でも他の動作は継続する
+    }
+  }
+  document.addEventListener("touchend", unlockAudio, { once: true });
+  document.addEventListener("click", unlockAudio, { once: true });
+
   function showScreen(id) {
     document.querySelectorAll(".screen").forEach(function (el) {
       el.classList.remove("active");
@@ -450,11 +475,12 @@ window.APP_CONFIG = {
     }, 1200);
   }
 
-  // Web Audio によるシンプルな終了音（⚠️実機での鳴動は未検証）
+  // Web Audio によるシンプルな終了音（最初のタップでアンロック済みのaudioCtxを再利用する）
   function playEndSound() {
     try {
       var Ctx = window.AudioContext || window.webkitAudioContext;
-      var ctx = new Ctx();
+      var ctx = audioCtx || new Ctx();
+      if (ctx.state === "suspended") ctx.resume();
       var osc = ctx.createOscillator();
       var gain = ctx.createGain();
       osc.type = "sine";
