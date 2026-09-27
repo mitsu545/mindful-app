@@ -146,6 +146,13 @@
   .result-card div:last-child { border-bottom: none; }
   .reminder { background: var(--accent-soft); color: var(--accent-dark); border-radius: var(--radius-md); padding: 16px 18px; margin-bottom: 20px; font-size: 0.95rem; line-height: 1.6; max-width: 320px; }
 
+  /* 瞑想の心得（ホーム画面） */
+  .tips-card { width: 100%; max-width: 360px; background: var(--accent-soft); color: var(--accent-dark); border-radius: var(--radius-md); padding: 16px 18px; margin-top: 24px; text-align: left; }
+  .tips-title { font-size: 0.85rem; font-weight: 700; margin-bottom: 10px; }
+  .tips-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .tips-list li { display: flex; gap: 10px; font-size: 0.85rem; line-height: 1.5; }
+  .tips-num { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
   /* 保存状態 */
   #save-status { font-size: 0.9rem; margin-bottom: 12px; min-height: 1.4em; }
   #save-status.error { color: var(--danger); }
@@ -176,6 +183,14 @@ window.APP_CONFIG = {
   <div id="home-error-banner" hidden>
     直前の記録が保存できませんでした
     <div style="margin-top:8px;"><button class="secondary" id="home-retry-btn">再送する</button></div>
+  </div>
+  <div class="tips-card">
+    <div class="tips-title">瞑想の心得</div>
+    <ol class="tips-list">
+      <li><span class="tips-num">1</span><span>呼吸やお腹の動きを、そのまま眺めましょう</span></li>
+      <li><span class="tips-num">2</span><span>雑念が浮かんでも大丈夫。気づいたら、そっと呼吸に戻りましょう</span></li>
+      <li><span class="tips-num">3</span><span>完全に集中しなくてOK。「気づく→戻す」の繰り返しが上達のカギです</span></li>
+    </ol>
   </div>
 </section>
 
