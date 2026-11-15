@@ -162,29 +162,33 @@
 </head>
 <body>
 <script>
-// GASのURLと合言葉はコードに書かない（公開リポのため）。
-// この端末の localStorage に保存し、初回だけ入力する。
+// GASのURLは公開してよい（合言葉がないと読み書きできない）。合言葉だけはコードに書かない。
+// 合言葉は3か所（localStorage・cookie・URLの#k=）に保存し、どれか1つ残っていれば入力は聞かない。
 // 合言葉を変えたときは、アプリのURLの末尾に #setup を付けて開くと入れ直せる。
 (function () {
-  function get(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
-  function set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-  var redo = location.hash === "#setup";
-  var gasUrl = get("mindful_gas_url");
-  var secret = get("mindful_secret");
-  if (redo || !gasUrl || !secret) {
-    var u = prompt("GASのウェブアプリURLを貼ってください（https://script.google.com/…/exec）", gasUrl);
-    var s = prompt("合言葉を入力してください");
-    gasUrl = (u || gasUrl).trim();
-    secret = (s || secret).trim();
-    if (/^https:\/\/script\.google\.com\/.+\/exec$/.test(gasUrl) && secret) {
-      set("mindful_gas_url", gasUrl);
-      set("mindful_secret", secret);
-    } else {
-      gasUrl = ""; // 形が違うときは未設定扱い（記録は保留され、再読み込みで再入力できる）
-    }
-    if (redo) history.replaceState(null, "", location.pathname + location.search);
+  var GAS_URL = "https://script.google.com/macros/s/AKfycbzie7g1nd_WXyNFj4jhzMtgDWJwcOIIDhh8Jz-U-2T6IJpeg3dAFsS_vjyNwrElorIAxQ/exec";
+  var KEY = "mindful_secret";
+  function fromHash() { var m = location.hash.match(/^#k=(.+)$/); return m ? decodeURIComponent(m[1]) : ""; }
+  function fromLs() { try { return localStorage.getItem(KEY) || ""; } catch (e) { return ""; } }
+  function fromCookie() { var m = document.cookie.match(/(?:^|; )mindful_secret=([^;]*)/); return m ? decodeURIComponent(m[1]) : ""; }
+  function save(v) {
+    try { localStorage.setItem(KEY, v); } catch (e) {}
+    document.cookie = "mindful_secret=" + encodeURIComponent(v) + "; max-age=34560000; path=/; SameSite=Strict" + (location.protocol === "https:" ? "; Secure" : "");
+    history.replaceState(null, "", location.pathname + location.search + "#k=" + encodeURIComponent(v));
   }
-  window.APP_CONFIG = { gasUrl: gasUrl, secret: secret };
+  function clear() {
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    document.cookie = "mindful_secret=; max-age=0; path=/";
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+  var secret = location.hash === "#setup" ? "" : (fromHash() || fromLs() || fromCookie());
+  while (!secret) {
+    var s = prompt("合言葉を入力してください（この端末に保存され、次回からは聞かれません）");
+    if (s === null) break; // キャンセル時は未設定のまま（記録は保留される）
+    secret = s.trim();
+  }
+  if (secret) save(secret); // 毎回書き直して、消えかけた保存先も復活させる
+  window.APP_CONFIG = { gasUrl: secret ? GAS_URL : "", secret: secret, clear: clear };
 })();
 </script>
 
@@ -379,6 +383,11 @@
       .then(function (data) {
         if (data.ok) {
           todayCountEl.innerHTML = "今日の記録：<strong>" + data.todayCount + "件</strong>";
+        } else if (data.error === "合言葉が違います") {
+          // 間違った合言葉を保存したままにしない。消して入れ直してもらう
+          window.APP_CONFIG.clear();
+          alert("合言葉が違います。もう一度入力してください。");
+          location.reload();
         } else {
           todayCountEl.textContent = "";
         }

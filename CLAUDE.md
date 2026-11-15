@@ -31,4 +31,4 @@
 - 起動コマンド：なし（`index.html` をブラウザで開く）
 - 公開先：GitHub Pages（private リポのため⚠️公開設定は要確認）
 - 実行環境：Windows で開発、iPhone Safari で利用
-- GAS の Web App URL と合言葉はコードに書かない（公開リポ）。端末の localStorage に保存し、初回だけ入力する
+- 合言葉はコードに書かない（公開リポ）。端末に保存し、初回だけ入力する。GAS の URL は合言葉なしでは使えないので `index.html` に書いてよい
