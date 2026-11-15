@@ -162,10 +162,30 @@
 </head>
 <body>
 <script>
-window.APP_CONFIG = {
-  gasUrl: "https://script.google.com/macros/s/AKfycbzie7g1nd_WXyNFj4jhzMtgDWJwcOIIDhh8Jz-U-2T6IJpeg3dAFsS_vjyNwrElorIAxQ/exec",
-  secret: "なも"
-};
+// GASのURLと合言葉はコードに書かない（公開リポのため）。
+// この端末の localStorage に保存し、初回だけ入力する。
+// 合言葉を変えたときは、アプリのURLの末尾に #setup を付けて開くと入れ直せる。
+(function () {
+  function get(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+  function set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  var redo = location.hash === "#setup";
+  var gasUrl = get("mindful_gas_url");
+  var secret = get("mindful_secret");
+  if (redo || !gasUrl || !secret) {
+    var u = prompt("GASのウェブアプリURLを貼ってください（https://script.google.com/…/exec）", gasUrl);
+    var s = prompt("合言葉を入力してください");
+    gasUrl = (u || gasUrl).trim();
+    secret = (s || secret).trim();
+    if (/^https:\/\/script\.google\.com\/.+\/exec$/.test(gasUrl) && secret) {
+      set("mindful_gas_url", gasUrl);
+      set("mindful_secret", secret);
+    } else {
+      gasUrl = ""; // 形が違うときは未設定扱い（記録は保留され、再読み込みで再入力できる）
+    }
+    if (redo) history.replaceState(null, "", location.pathname + location.search);
+  }
+  window.APP_CONFIG = { gasUrl: gasUrl, secret: secret };
+})();
 </script>
 
 <section id="screen-home" class="screen active">
